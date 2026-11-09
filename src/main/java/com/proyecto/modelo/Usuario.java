@@ -1,31 +1,34 @@
 package com.proyecto.modelo;
 
 public class Usuario {
-    private final String nombre;
-    private final String correo;
+    private final String nombreUsuario;
     private final String contrasena;
     private final Rol rol;
 
-    public Usuario(String nombre, String correo, String contrasena, Rol rol) {
-        this.nombre = nombre;
-        this.correo = correo;
+    public Usuario(String nombreUsuario, String contrasena, Rol rol) {
+        this.nombreUsuario = nombreUsuario;
         this.contrasena = contrasena;
         this.rol = rol;
     }
 
-    public String getNombre() {
-        return nombre;
+    public String getNombreUsuario() {
+        return nombreUsuario;
     }
 
-    public String getCorreo() {
-        return correo;
-    }
-
+    /** Se usa para guardar clientes en el archivo local de usuarios. */
     public String getContrasena() {
         return contrasena;
     }
 
     public Rol getRol() {
         return rol;
+    }
+
+    public boolean coincideCon(String nombre, String clave) {
+        return nombreUsuario.equalsIgnoreCase(nombre) && contrasena.equals(clave);
+    }
+
+    public boolean esAdministrador() {
+        return rol == Rol.ADMINISTRADOR;
     }
 }
