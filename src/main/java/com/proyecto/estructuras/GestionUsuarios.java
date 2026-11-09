@@ -10,7 +10,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Mantiene usuarios en una lista y persiste las cuentas de cliente en un archivo. */
+
 public class GestionUsuarios {
     private static final Path ARCHIVO = Path.of("usuarios.txt");
     private static final String SEPARADOR = ";";
@@ -25,7 +25,7 @@ public class GestionUsuarios {
         cargarClientesGuardados();
     }
 
-    /** Siempre asigna el rol CLIENTE, sin importar el dato del formulario. */
+
     public Usuario registrarCliente(String nombreUsuario, String contrasena) {
         String nombre = nombreUsuario == null ? "" : nombreUsuario.trim();
         if (nombre.length() < LARGO_MINIMO_USUARIO) {

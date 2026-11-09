@@ -16,6 +16,7 @@ import javafx.scene.layout.VBox;
 /** Login separado en formularios de cliente y administrador. */
 public class LoginView {
     private final VBox contenido = new VBox(14);
+    private final StackPane raiz = new StackPane();
 
     private final TextField usuarioCliente = new TextField();
     private final PasswordField contrasenaCliente = new PasswordField();
@@ -72,8 +73,15 @@ public class LoginView {
 
         contenido.setAlignment(Pos.CENTER);
         contenido.setStyle(Estilos.FONDO_PANTALLA);
-        contenido.getChildren().addAll(pestañas, tarjetas);
-        contenido.setPrefWidth(480);
+        contenido.getChildren().addAll(
+                Estilos.titulo("NEXUS"),
+                Estilos.subtitulo("Tienda de ropa para hombre"),
+                pestañas,
+                tarjetas);
+        contenido.setPrefWidth(370);
+        contenido.setMaxWidth(370);
+        raiz.setStyle(Estilos.FONDO_PANTALLA);
+        raiz.getChildren().add(contenido);
     }
 
     private void prepararCampos(TextField usuario, PasswordField contrasena) {
@@ -118,7 +126,7 @@ public class LoginView {
     }
 
     public Parent getContenido() {
-        return contenido;
+        return raiz;
     }
 
     public String getUsuarioIngresado(Rol rol) {
