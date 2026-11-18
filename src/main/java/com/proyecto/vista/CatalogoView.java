@@ -1,6 +1,7 @@
 package com.proyecto.vista;
 
 import com.proyecto.estructuras.GestionCatalogo;
+import com.proyecto.estructuras.ListaSimpleEnlazada;
 import com.proyecto.modelo.Producto;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -19,21 +20,19 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
 
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.Set;
 
 /** Muestra las prendas y permite guardarlas en el carrito o en favoritos. */
 public class CatalogoView {
     private final GestionCatalogo gestionCatalogo;
     private final boolean modoAdministrador;
-    private final ArrayList<Producto> carrito;
-    private final Set<Integer> favoritos;
+    private final ListaSimpleEnlazada<Producto> carrito;
+    private final ListaSimpleEnlazada<Integer> favoritos;
     private final Label resumen = Estilos.subtitulo("Carrito: 0 | Favoritos: 0");
     private final VBox contenido = new VBox(14);
     private final GridPane productos = new GridPane();
 
-    public CatalogoView(GestionCatalogo gestionCatalogo, ArrayList<Producto> carrito,
-                        Set<Integer> favoritos, boolean modoAdministrador) {
+    public CatalogoView(GestionCatalogo gestionCatalogo, ListaSimpleEnlazada<Producto> carrito,
+                        ListaSimpleEnlazada<Integer> favoritos, boolean modoAdministrador) {
         this.gestionCatalogo = gestionCatalogo;
         this.modoAdministrador = modoAdministrador;
         this.carrito = carrito;
@@ -112,20 +111,20 @@ public class CatalogoView {
             Button agregar = Estilos.botonPrimario("Agregar al carrito");
             agregar.setMaxWidth(Double.MAX_VALUE);
             agregar.setOnAction(e -> {
-                carrito.add(producto);
+                carrito.agregar(producto);
                 actualizarResumen();
                 estado.setText("Agregado al carrito.");
             });
 
             Button favorito = Estilos.botonEnlace("Agregar a favoritos");
-            favorito.setText(favoritos.contains(producto.getId()) ? "Quitar de favoritos" : "Agregar a favoritos");
+            favorito.setText(favoritos.contiene(producto.getId()) ? "Quitar de favoritos" : "Agregar a favoritos");
             favorito.setMaxWidth(Double.MAX_VALUE);
             favorito.setOnAction(e -> {
-                if (favoritos.add(producto.getId())) {
+                if (favoritos.agregarSiNoExiste(producto.getId())) {
                     favorito.setText("Quitar de favoritos");
                     estado.setText("Agregado a favoritos.");
                 } else {
-                    favoritos.remove(producto.getId());
+                    favoritos.eliminar(producto.getId());
                     favorito.setText("Agregar a favoritos");
                     estado.setText("Quitado de favoritos.");
                 }
@@ -164,7 +163,7 @@ public class CatalogoView {
     }
 
     private void actualizarResumen() {
-        resumen.setText("Carrito: " + carrito.size() + " | Favoritos: " + favoritos.size());
+        resumen.setText("Carrito: " + carrito.tamano() + " | Favoritos: " + favoritos.tamano());
     }
 
     private void actualizarProductos() {

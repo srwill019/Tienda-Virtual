@@ -1,7 +1,10 @@
 package com.proyecto.vista;
 
 import com.proyecto.controlador.ContextoApp;
+import com.proyecto.estructuras.PilaEnlazada;
 import com.proyecto.modelo.Producto;
+import com.proyecto.modelo.Pedido;
+import com.proyecto.modelo.Operacion;
 import com.proyecto.modelo.Usuario;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -14,6 +17,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
@@ -28,6 +32,10 @@ public class PrincipalView {
     private final BorderPane raiz = new BorderPane();
     private final VBox menu = new VBox(6);
     private final List<Button> botonesMenu = new ArrayList<>();
+    private final PilaEnlazada<Node> pantallasAnteriores = new PilaEnlazada<>();
+    private final PilaEnlazada<Button> opcionesAnteriores = new PilaEnlazada<>();
+    private final Button volver = Estilos.botonEnlace("←");
+    private Button opcionActiva;
 
     public PrincipalView(ContextoApp contexto, Runnable alCerrarSesion) {
         Usuario usuario = contexto.getUsuarioActual();
@@ -45,13 +53,13 @@ public class PrincipalView {
         if (admin) {
             agregarOpcion("Agregar producto",
                     () -> new AgregarProductoView(contexto.getCatalogo()).getContenido());
+            agregarOpcion("Historial", () -> panelHistorial(contexto));
         } else {
             agregarOpcion("Carrito", () -> panelProductos(contexto, false));
             agregarOpcion("Favoritos", () -> panelProductos(contexto, true));
         }
         agregarOpcion(admin ? "Pedidos pendientes" : "Hacer pedido",
-                () -> panelPendiente("Pedidos"));
-        agregarOpcion("Historial", () -> panelPendiente("Historial"));
+                () -> admin ? panelPedidos(contexto) : hacerPedido(contexto));
 
         Region espacio = new Region();
         VBox.setVgrow(espacio, Priority.ALWAYS);
@@ -65,6 +73,16 @@ public class PrincipalView {
         raiz.setLeft(menu);
         raiz.setStyle(Estilos.FONDO_PANTALLA);
 
+        HBox barraNavegacion = new HBox(volver);
+        barraNavegacion.setPadding(new Insets(12, 25, 0, 25));
+        raiz.setTop(barraNavegacion);
+        volver.setMinSize(34, 32);
+        volver.setStyle("-fx-background-color: " + Estilos.AZUL_ACENTO
+                + "; -fx-text-fill: white; -fx-font-size: 21px; -fx-font-weight: bold;"
+                + " -fx-padding: 0 6 2 6; -fx-background-radius: 6; -fx-cursor: hand;");
+        volver.setDisable(true);
+        volver.setOnAction(e -> volverPantallaAnterior());
+
         botonesMenu.get(0).fire();
     }
 
@@ -75,7 +93,13 @@ public class PrincipalView {
     private void agregarOpcion(String texto, Supplier<Node> creadorPantalla) {
         Button boton = Estilos.botonMenu(texto);
         boton.setOnAction(e -> {
+            if (raiz.getCenter() != null && opcionActiva != null) {
+                pantallasAnteriores.apilar(raiz.getCenter());
+                opcionesAnteriores.apilar(opcionActiva);
+                volver.setDisable(false);
+            }
             marcarActivo(boton);
+            opcionActiva = boton;
             mostrar(creadorPantalla.get());
         });
         botonesMenu.add(boton);
@@ -93,11 +117,84 @@ public class PrincipalView {
         raiz.setCenter(pantalla);
     }
 
-    private Node panelPendiente(String nombre) {
-        VBox panel = new VBox(10,
-                Estilos.titulo(nombre),
-                Estilos.subtitulo("Esta seccion se construira en los siguientes bloques."));
+    private void volverPantallaAnterior() {
+        if (pantallasAnteriores.estaVacia()) {
+            volver.setDisable(true);
+            return;
+        }
+        mostrar(pantallasAnteriores.desapilar());
+        opcionActiva = opcionesAnteriores.desapilar();
+        marcarActivo(opcionActiva);
+        volver.setDisable(pantallasAnteriores.estaVacia());
+    }
+
+    private Node hacerPedido(ContextoApp contexto) {
+        VBox panel = new VBox(10, Estilos.titulo("Pedidos"));
+        panel.setPadding(new Insets(20));
         panel.setStyle(Estilos.FONDO_PANTALLA);
+        if (contexto.getCarrito().estaVacia()) {
+            panel.getChildren().add(Estilos.subtitulo("El carrito esta vacio."));
+            return panel;
+        }
+        int agregados = 0;
+        for (Producto producto : contexto.getCarrito().obtenerCopia()) {
+            Pedido pedido = contexto.getGestionPedidos().agregarPedido(producto);
+            if (pedido != null) {
+                contexto.getCarrito().eliminar(producto);
+                agregados++;
+            }
+        }
+        panel.getChildren().add(Estilos.subtitulo(agregados == 0
+                ? "No hay unidades disponibles para agregar a pedidos."
+                : "Se agregaron " + agregados + " pedido(s) a la cola."));
+        return panel;
+    }
+
+    private Node panelPedidos(ContextoApp contexto) {
+        VBox panel = new VBox(10, Estilos.titulo("Pedidos pendientes"));
+        panel.setPadding(new Insets(20));
+        panel.setStyle(Estilos.FONDO_PANTALLA);
+        List<Pedido> pedidos = contexto.getGestionPedidos().getPedidosPendientes();
+        if (pedidos.isEmpty()) {
+            panel.getChildren().add(Estilos.subtitulo("No hay pedidos pendientes."));
+            return panel;
+        }
+        panel.getChildren().add(Estilos.subtitulo("Selecciona el primer pedido para atenderlo en orden de llegada."));
+        for (int i = 0; i < pedidos.size(); i++) {
+            Pedido pedido = pedidos.get(i);
+            Label fila = Estilos.subtitulo(pedido + (i == 0 ? "  (siguiente)" : ""));
+            if (i == 0) {
+                fila.setOnMouseClicked(e -> {
+                    contexto.getGestionPedidos().procesarSiguiente();
+                    mostrar(panelPedidos(contexto));
+                });
+            }
+            panel.getChildren().add(fila);
+        }
+        return panel;
+    }
+
+    private Node panelHistorial(ContextoApp contexto) {
+        VBox panel = new VBox(10, Estilos.titulo("Historial"));
+        panel.setPadding(new Insets(20));
+        panel.setStyle(Estilos.FONDO_PANTALLA);
+        List<Operacion> operaciones = contexto.getGestionPedidos().getHistorial();
+        if (operaciones.isEmpty()) {
+            panel.getChildren().add(Estilos.subtitulo("No hay operaciones para mostrar."));
+            return panel;
+        }
+        panel.getChildren().add(Estilos.subtitulo("Selecciona la operacion mas reciente para deshacerla."));
+        for (int i = 0; i < operaciones.size(); i++) {
+            Operacion operacion = operaciones.get(i);
+            Label fila = Estilos.subtitulo(operacion.toString() + (i == 0 ? "  (mas reciente)" : ""));
+            if (i == 0) {
+                fila.setOnMouseClicked(e -> {
+                    contexto.getGestionPedidos().deshacerUltimoProceso();
+                    mostrar(panelHistorial(contexto));
+                });
+            }
+            panel.getChildren().add(fila);
+        }
         return panel;
     }
 
@@ -109,8 +206,8 @@ public class PrincipalView {
 
         List<Producto> productos = mostrarFavoritos
                 ? contexto.getCatalogo().getProductos().stream()
-                    .filter(p -> contexto.getFavoritos().contains(p.getId())).toList()
-                : new ArrayList<>(contexto.getCarrito());
+                    .filter(p -> contexto.getFavoritos().contiene(p.getId())).toList()
+                : contexto.getCarrito().obtenerCopia();
 
         if (productos.isEmpty()) {
             panel.getChildren().add(Estilos.subtitulo(mostrarFavoritos
@@ -151,9 +248,9 @@ public class PrincipalView {
         quitar.setMaxWidth(Double.MAX_VALUE);
         quitar.setOnAction(e -> {
             if (mostrarFavoritos) {
-                contexto.getFavoritos().remove(producto.getId());
+                contexto.getFavoritos().eliminar(producto.getId());
             } else {
-                contexto.getCarrito().remove(producto);
+                contexto.getCarrito().eliminar(producto);
             }
             mostrar(panelProductos(contexto, mostrarFavoritos));
         });
