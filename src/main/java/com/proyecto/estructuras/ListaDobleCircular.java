@@ -2,6 +2,7 @@ package com.proyecto.estructuras;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Predicate;
 
 /** Lista doble circular: el último enlaza con el primero en ambos sentidos. */
 public class ListaDobleCircular<T> {
@@ -53,5 +54,19 @@ public class ListaDobleCircular<T> {
             nodo = nodo.siguiente;
         } while (nodo != primero);
         return copia;
+    }
+
+    /** Devuelve los elementos que cumplen el criterio, recorriendo una vez el circulo. */
+    public List<T> buscar(Predicate<T> criterio) {
+        List<T> coincidencias = new ArrayList<>();
+        if (primero == null) return coincidencias;
+        NodoDoble<T> nodo = primero;
+        do {
+            if (criterio.test(nodo.dato)) {
+                coincidencias.add(nodo.dato);
+            }
+            nodo = nodo.siguiente;
+        } while (nodo != primero);
+        return coincidencias;
     }
 }

@@ -3,6 +3,7 @@ package com.proyecto.estructuras;
 import com.proyecto.modelo.Producto;
 
 import java.util.List;
+import java.util.Locale;
 
 public class GestionCatalogo {
     private final ListaDobleCircular<Producto> productos = new ListaDobleCircular<>();
@@ -60,6 +61,15 @@ public class GestionCatalogo {
 
     public List<Producto> getProductos() {
         return productos.obtenerCopia();
+    }
+
+    public List<Producto> buscar(String texto) {
+        String consulta = texto == null ? "" : texto.trim().toLowerCase(Locale.ROOT);
+        if (consulta.isEmpty()) {
+            return productos.obtenerCopia();
+        }
+        return productos.buscar(producto -> producto.getNombre().toLowerCase(Locale.ROOT).contains(consulta)
+                || String.valueOf(producto.getId()).contains(consulta));
     }
 
     public int total() {

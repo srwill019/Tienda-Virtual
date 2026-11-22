@@ -58,8 +58,9 @@ public class PrincipalView {
             agregarOpcion("Carrito", () -> panelProductos(contexto, false));
             agregarOpcion("Favoritos", () -> panelProductos(contexto, true));
         }
-        agregarOpcion(admin ? "Pedidos pendientes" : "Hacer pedido",
-                () -> admin ? panelPedidos(contexto) : hacerPedido(contexto));
+        if (admin) {
+            agregarOpcion("Pedidos pendientes", () -> panelPedidos(contexto));
+        }
 
         Region espacio = new Region();
         VBox.setVgrow(espacio, Priority.ALWAYS);
@@ -93,7 +94,7 @@ public class PrincipalView {
     private void agregarOpcion(String texto, Supplier<Node> creadorPantalla) {
         Button boton = Estilos.botonMenu(texto);
         boton.setOnAction(e -> {
-            if (raiz.getCenter() != null && opcionActiva != null) {
+            if (boton != opcionActiva && raiz.getCenter() != null && opcionActiva != null) {
                 pantallasAnteriores.apilar(raiz.getCenter());
                 opcionesAnteriores.apilar(opcionActiva);
                 volver.setDisable(false);
@@ -230,6 +231,11 @@ public class PrincipalView {
         desplazamiento.setStyle("-fx-background: black; -fx-background-color: black;");
         panel.getChildren().add(desplazamiento);
         VBox.setVgrow(desplazamiento, Priority.ALWAYS);
+        if (!mostrarFavoritos) {
+            Button continuarCompra = Estilos.botonPrimario("Continuar al proceso de compra");
+            continuarCompra.setOnAction(e -> mostrar(hacerPedido(contexto)));
+            panel.getChildren().add(continuarCompra);
+        }
         return panel;
     }
 

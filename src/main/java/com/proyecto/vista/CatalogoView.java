@@ -3,10 +3,15 @@ package com.proyecto.vista;
 import com.proyecto.estructuras.GestionCatalogo;
 import com.proyecto.estructuras.ListaSimpleEnlazada;
 import com.proyecto.modelo.Producto;
+import com.proyecto.modelo.FiltroProductos;
+import com.proyecto.modelo.FiltroProductos.Disponibilidad;
+import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
@@ -30,6 +35,14 @@ public class CatalogoView {
     private final Label resumen = Estilos.subtitulo("Carrito: 0 | Favoritos: 0");
     private final VBox contenido = new VBox(14);
     private final GridPane productos = new GridPane();
+    private final TextField busqueda = new TextField();
+    private final ComboBox<Disponibilidad> disponibilidad = new ComboBox<>(
+            FXCollections.observableArrayList(Disponibilidad.values()));
+    private final TextField precioMinimo = new TextField();
+    private final TextField precioMaximo = new TextField();
+    private final CheckBox soloFavoritos = new CheckBox("Solo favoritos");
+    private final Label cantidadResultados = Estilos.subtitulo("");
+    private final Label mensaje = Estilos.subtitulo("");
 
     public CatalogoView(GestionCatalogo gestionCatalogo, ListaSimpleEnlazada<Producto> carrito,
                         ListaSimpleEnlazada<Integer> favoritos, boolean modoAdministrador) {
@@ -52,6 +65,42 @@ public class CatalogoView {
         productos.setVgap(16);
         productos.setAlignment(Pos.TOP_CENTER);
 
+        busqueda.setPromptText("Buscar por nombre o id");
+        Estilos.aplicarCampo(busqueda);
+        HBox panelBusqueda = new HBox(10, Estilos.subtitulo("Buscar"), busqueda);
+        panelBusqueda.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(busqueda, Priority.ALWAYS);
+
+        disponibilidad.setValue(Disponibilidad.TODOS);
+        disponibilidad.setPromptText("Disponibilidad");
+        disponibilidad.setStyle("-fx-control-inner-background: " + Estilos.AZUL_MENU + "; -fx-text-fill: white;");
+        precioMinimo.setPromptText("Precio minimo");
+        precioMaximo.setPromptText("Precio maximo");
+        Estilos.aplicarCampo(precioMinimo);
+        Estilos.aplicarCampo(precioMaximo);
+        Button limpiarFiltros = Estilos.botonPrimario("Limpiar filtros");
+        limpiarFiltros.setOnAction(e -> {
+            disponibilidad.setValue(Disponibilidad.TODOS);
+            precioMinimo.clear();
+            precioMaximo.clear();
+            soloFavoritos.setSelected(false);
+            mensaje.setText("");
+            refrescar();
+        });
+        HBox panelFiltros = new HBox(10, Estilos.subtitulo("Filtros"), disponibilidad,
+                precioMinimo, precioMaximo);
+        if (!modoAdministrador) {
+            soloFavoritos.setStyle("-fx-text-fill: white;");
+            panelFiltros.getChildren().add(soloFavoritos);
+        }
+        panelFiltros.getChildren().add(limpiarFiltros);
+        panelFiltros.setAlignment(Pos.CENTER_LEFT);
+        disponibilidad.valueProperty().addListener((observable, anterior, nuevo) -> refrescarDesdeControl());
+        precioMinimo.textProperty().addListener((observable, anterior, nuevo) -> refrescarDesdeControl());
+        precioMaximo.textProperty().addListener((observable, anterior, nuevo) -> refrescarDesdeControl());
+        soloFavoritos.selectedProperty().addListener((observable, anterior, nuevo) -> refrescarDesdeControl());
+        busqueda.textProperty().addListener((observable, anterior, nuevo) -> refrescarDesdeControl());
+
         ScrollPane desplazamiento = new ScrollPane(productos);
         desplazamiento.setFitToWidth(true);
         desplazamiento.setFitToHeight(true);
@@ -59,10 +108,11 @@ public class CatalogoView {
         desplazamiento.setStyle("-fx-background: black; -fx-background-color: black;");
         contenido.setPadding(new Insets(24));
         contenido.setStyle(Estilos.FONDO_PANTALLA);
-        contenido.getChildren().addAll(encabezado, descripcion);
+        contenido.getChildren().addAll(encabezado, descripcion, panelBusqueda, panelFiltros,
+                cantidadResultados, mensaje);
         contenido.getChildren().add(desplazamiento);
         VBox.setVgrow(desplazamiento, Priority.ALWAYS);
-        actualizarProductos();
+        refrescar();
         actualizarResumen();
     }
 
@@ -98,8 +148,8 @@ public class CatalogoView {
                     if (!gestionCatalogo.actualizarStock(producto.getId(), cantidad)) {
                         estado.setText("El stock debe ser un numero igual o mayor que cero.");
                     } else {
-                        stockActual.setText("Stock actual: " + cantidad);
-                        estado.setText("Stock actualizado.");
+                        mensaje.setText("Stock actualizado.");
+                        refrescar();
                     }
                 } catch (NumberFormatException ex) {
                     estado.setText("Escribe un numero entero para el stock.");
@@ -121,14 +171,13 @@ public class CatalogoView {
             favorito.setMaxWidth(Double.MAX_VALUE);
             favorito.setOnAction(e -> {
                 if (favoritos.agregarSiNoExiste(producto.getId())) {
-                    favorito.setText("Quitar de favoritos");
-                    estado.setText("Agregado a favoritos.");
+                    mensaje.setText("Agregado a favoritos.");
                 } else {
                     favoritos.eliminar(producto.getId());
-                    favorito.setText("Agregar a favoritos");
-                    estado.setText("Quitado de favoritos.");
+                    mensaje.setText("Quitado de favoritos.");
                 }
                 actualizarResumen();
+                refrescar();
             });
             tarjeta = new VBox(10, crearImagen(producto), nombre, precio, detalle, agregar, favorito, estado);
         }
@@ -166,12 +215,64 @@ public class CatalogoView {
         resumen.setText("Carrito: " + carrito.tamano() + " | Favoritos: " + favoritos.tamano());
     }
 
-    private void actualizarProductos() {
+    private void refrescarDesdeControl() {
+        mensaje.setText("");
+        refrescar();
+    }
+
+    private void refrescar() {
         productos.getChildren().clear();
+        java.util.List<Producto> resultadoBusqueda = gestionCatalogo.buscar(busqueda.getText());
+        Double minimo;
+        Double maximo;
+        try {
+            minimo = leerPrecio(precioMinimo.getText());
+            maximo = leerPrecio(precioMaximo.getText());
+            if (minimo != null && maximo != null && minimo > maximo) {
+                throw new IllegalArgumentException("El precio minimo no puede superar el precio maximo.");
+            }
+        } catch (IllegalArgumentException ex) {
+            cantidadResultados.setText("Mostrando " + resultadoBusqueda.size() + " de " + resultadoBusqueda.size()
+                    + " productos");
+            mensaje.setText(ex.getMessage());
+            agregarMensajeSinResultados(resultadoBusqueda);
+            return;
+        }
+
+        FiltroProductos filtro = new FiltroProductos(disponibilidad.getValue(), minimo, maximo,
+                !modoAdministrador && soloFavoritos.isSelected());
+        java.util.List<Producto> resultado = filtro.aplicar(resultadoBusqueda, favoritos);
+        cantidadResultados.setText("Mostrando " + resultado.size() + " de " + resultadoBusqueda.size()
+                + " productos");
+        if (resultado.isEmpty()) {
+            agregarMensajeSinResultados(resultado);
+            return;
+        }
         int indice = 0;
-        for (Producto producto : gestionCatalogo.getProductos()) {
+        for (Producto producto : resultado) {
             productos.add(crearTarjeta(producto), indice % 4, indice / 4);
             indice++;
+        }
+    }
+
+    private Double leerPrecio(String texto) {
+        String valor = texto == null ? "" : texto.trim();
+        if (valor.isEmpty()) return null;
+        try {
+            double precio = Double.parseDouble(valor);
+            if (!Double.isFinite(precio)) {
+                throw new IllegalArgumentException("El precio debe ser un numero finito.");
+            }
+            return precio;
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException("Escribe un precio numerico valido.");
+        }
+    }
+
+    private void agregarMensajeSinResultados(java.util.List<Producto> resultado) {
+        if (resultado.isEmpty()) {
+            Label sinResultados = Estilos.subtitulo("No se encontraron productos con esos criterios.");
+            productos.add(sinResultados, 0, 0);
         }
     }
 }
