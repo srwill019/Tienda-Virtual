@@ -33,6 +33,11 @@ public class Main extends Application {
         maximizarVentana();
     }
 
+    @Override
+    public void stop() {
+        contexto.guardarDatosUsuarioActual();
+    }
+
     private void mostrarLogin() {
         contexto.cerrarSesion();
         LoginView vista = new LoginView();

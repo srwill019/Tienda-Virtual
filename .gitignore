@@ -39,3 +39,6 @@ build/
 ### Mac OS ###
 .DS_Store
 usuarios.txt
+pedidos.txt
+productos.txt
+preferencias_clientes.txt

@@ -2,6 +2,7 @@ package com.proyecto.estructuras;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Predicate;
 
 /** Lista doble circular: el último enlaza con el primero en ambos sentidos. */
@@ -68,5 +69,28 @@ public class ListaDobleCircular<T> {
             nodo = nodo.siguiente;
         } while (nodo != primero);
         return coincidencias;
+    }
+
+    /** Elimina la primera coincidencia y conserva el cierre circular en ambos sentidos. */
+    public boolean eliminar(T dato) {
+        if (primero == null) return false;
+        NodoDoble<T> actual = primero;
+        do {
+            if (Objects.equals(actual.dato, dato)) {
+                if (tamano == 1) {
+                    primero = null;
+                } else {
+                    actual.anterior.siguiente = actual.siguiente;
+                    actual.siguiente.anterior = actual.anterior;
+                    if (actual == primero) {
+                        primero = actual.siguiente;
+                    }
+                }
+                tamano--;
+                return true;
+            }
+            actual = actual.siguiente;
+        } while (actual != primero);
+        return false;
     }
 }
